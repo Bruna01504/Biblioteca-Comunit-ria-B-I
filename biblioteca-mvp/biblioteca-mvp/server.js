@@ -103,6 +103,33 @@ app.get('/api/emprestimos', (req, res) => {
     });
 });
 
+app.get('/api/stats', (req, res) => {
+    console.log('Recebida requisição para /api/stats');
+    const stats = {};
+    const hoje = new Date().toISOString().split('T')[0];
+
+    db.get("SELECT COUNT(*) as count FROM emprestimos WHERE status = 'Ativo'", (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        stats.emprestimosAtivos = row ? row.count : 0;
+        
+        db.get("SELECT COUNT(*) as count FROM emprestimos WHERE status = 'Ativo' AND data_devolucao_prevista < ?", [hoje], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            stats.emAtraso = row ? row.count : 0;
+            
+            db.get("SELECT COUNT(*) as count FROM leitores", (err, row) => {
+                if (err) return res.status(500).json({ error: err.message });
+                stats.leitoresCadastrados = row ? row.count : 0;
+                
+                db.get("SELECT SUM(quantidade) as count FROM livros", (err, row) => {
+                    if (err) return res.status(500).json({ error: err.message });
+                    stats.livrosDisponiveis = row ? row.count || 0 : 0;
+                    res.json(stats);
+                });
+            });
+        });
+    });
+});
+
 app.post('/api/emprestimos/:id/devolver', (req, res) => {
     const { id } = req.params;
     
